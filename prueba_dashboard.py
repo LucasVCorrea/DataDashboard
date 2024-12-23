@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+import seaborn as sns
 
 st.set_page_config(page_title = "Auditores Data", page_icon=":bar_chart:", layout="wide")
 
@@ -12,12 +13,20 @@ hide_st_style = """
     </style>
     """
 st.markdown(hide_st_style, unsafe_allow_html=True)
+
 @st.cache_data
 def get_data_from_csv():
     data_auditores = pd.read_csv("files/merged_para_dashboard.csv")
     return data_auditores
 
+@st.cache_data
+def get_data_vulcan_csv():
+    data_vulcan = pd.read_csv("files/resultados_vulcan (1).csv")
+    return data_vulcan
+
 data_auditores = get_data_from_csv()
+data_vulcan = get_data_vulcan_csv()
+
 # --- SIDEBAR ----
 st.sidebar.header("Filtra acá:")
 
@@ -26,7 +35,7 @@ mes = st.sidebar.multiselect("Selecciona el mes: ", options=data_auditores["Mes"
 
 # Filtrar por Mes
 data_filtrada_por_mes = data_auditores.query("Mes == @mes") if mes else data_auditores
-
+vulcan_filtrado_por_mes = data_vulcan.query("Periodo == @mes") if mes else data_vulcan
 # Total auditado del mes seleccionado
 auditado_total_del_mes = data_filtrada_por_mes["Totales"].sum()
 
@@ -35,13 +44,13 @@ auditor = st.sidebar.multiselect("Selecciona el auditor: ", options=data_filtrad
 
 # Filtrar por Auditor y Mes
 data_filtrada_por_auditor = data_filtrada_por_mes.query("Nombre == @auditor") if auditor else data_filtrada_por_mes
+data_vulcan_por_auditor = vulcan_filtrado_por_mes.query("Auditor == @auditor") if auditor else vulcan_filtrado_por_mes
 # Filtro de Fecha
 fecha = st.sidebar.multiselect("Selecciona la fecha: ", options=data_filtrada_por_auditor["Fecha"].unique())
 
-# Filtrar por Fecha
+# Filtrado con mes, auditor y fecha
 df_seleccionado = data_filtrada_por_auditor.query("Fecha == @fecha") if fecha else data_filtrada_por_auditor
-
-
+#df_seleccionado_vulcan = data_vulcan_por_auditor.query("Fecha de Auditoría == @fecha") if fecha else data_vulcan_por_auditor
 # --- Main_page ----
 st.title(":bar_chart: Datos de Auditores")
 
@@ -73,7 +82,7 @@ def metrics():
     middle.metric("Total del auditor", value = int(infracciones_auditor))
     right.metric("Porcentaje",value = round(porcentaje_audiciones_sobre_total_del_mes,2))
 
-    style_metric_cards(background_color = "black", border_left_color="pink")
+    style_metric_cards(background_color = "black", border_left_color="Aquamarine")
 metrics()
 
 
@@ -102,3 +111,20 @@ def barchar():
         st.plotly_chart(fig, use_container_width=True)
 
 barchar()
+a,b = st.columns(2)
+
+with a:
+    if mes:
+        fig = px.line(data_vulcan_por_auditor, x="Fecha de Auditoría", y="Porcentaje de auditorías desaprobadas")
+        fig.update_traces(line=dict(color='Aquamarine'))
+    if mes and auditor:
+        fig = px.line(data_vulcan_por_auditor, x="Fecha de Auditoría", y="Porcentaje de auditorías desaprobadas", color = "Auditor")
+
+    if not mes:
+        agrupado = vulcan_filtrado_por_mes.groupby("Fecha de Auditoría").agg({"Total de rechazadas":["sum"], "Auditorías desaprobadas":["sum"]}).reset_index()
+        agrupado.columns = ["Fecha de Auditoría", "Rechazadas", "Desaprobadas"]
+        agrupado["Porcentaje de auditorías desaprobadas"] = round((agrupado["Desaprobadas"] / agrupado["Rechazadas"])*100,2)
+
+        fig = px.line(agrupado, x="Fecha de Auditoría", y="Porcentaje de auditorías desaprobadas")
+        fig.update_traces(line=dict(color='Aquamarine'))
+    st.plotly_chart(fig, use_container_width=True)
