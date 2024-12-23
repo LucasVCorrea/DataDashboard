@@ -1,9 +1,9 @@
 [theme]
-primaryColor = "#E694FF"
+primaryColor = "DarkCyan"
 
-backgroundColor = "#00172B"
+backgroundColor = "#0f0f17"
 
-secondaryBackgroundColor = "#0083B8"
+secondaryBackgroundColor = "DarkSlateGray"
 
 textColor = "#FFF"
 

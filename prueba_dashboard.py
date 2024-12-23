@@ -52,7 +52,7 @@ fecha = st.sidebar.multiselect("Selecciona la fecha: ", options=data_filtrada_po
 df_seleccionado = data_filtrada_por_auditor.query("Fecha == @fecha") if fecha else data_filtrada_por_auditor
 #df_seleccionado_vulcan = data_vulcan_por_auditor.query("Fecha de Auditoría == @fecha") if fecha else data_vulcan_por_auditor
 # --- Main_page ----
-st.title(":bar_chart: Datos de Auditores")
+st.title(":bar_chart: Datos de Auditores :chart_with_upwards_trend:")
 
 # Total de infracciones del auditor seleccionado dentro del mes y/o fecha
 if mes and auditor and fecha:
@@ -106,7 +106,7 @@ def barchar():
         df_melted = df_agrupado.melt(id_vars="Nombre", var_name="Tipo", value_name="Valor")
         df_melted = pd.merge(df_melted, total, on = "Nombre")
         df_melted = df_melted.sort_values(by = "total")
-        fig = px.bar(df_melted, y = "Nombre", x = "Valor",text_auto = ".2s", color = "Tipo")
+        fig = px.bar(df_melted, y = "Nombre", x = "Valor",text_auto = ".2s", color = "Tipo", color_discrete_sequence=["LightSkyBlue", "LightPink", "LightGreen", "LightSalmon"])
         fig.update_traces(textfont_size = 18, textposition = "inside",marker=dict(line=dict(color='black', width=.5)))
         st.plotly_chart(fig, use_container_width=True)
 
