@@ -1,8 +1,6 @@
 import pandas as pd
 import streamlit as st
-import seaborn as sns
-import matplotlib.pyplot as plt
-from pygments.styles.dracula import background
+import plotly.express as px
 
 st.set_page_config(page_title = "Auditores Data", page_icon=":bar_chart:", layout="wide")
 
@@ -20,7 +18,6 @@ def get_data_from_csv():
     return data_auditores
 
 data_auditores = get_data_from_csv()
-
 # --- SIDEBAR ----
 st.sidebar.header("Filtra acá:")
 
@@ -44,7 +41,6 @@ fecha = st.sidebar.multiselect("Selecciona la fecha: ", options=data_filtrada_po
 # Filtrar por Fecha
 df_seleccionado = data_filtrada_por_auditor.query("Fecha == @fecha") if fecha else data_filtrada_por_auditor
 
-#st.dataframe(df_seleccionado)
 
 # --- Main_page ----
 st.title(":bar_chart: Datos de Auditores")
@@ -70,153 +66,39 @@ else:
     #auditado_total_del_mes = 0
     porcentaje_audiciones_sobre_total_del_mes = 0
 
-# Top
-left, middle, right = st.columns(3)
-with left:
-    st.subheader(f"Total audiciones del mes: {int(auditado_total_del_mes)}")
-with middle:
-    st.subheader(f"Total del auditor: {int(infracciones_auditor)}")
-with right:
-    st.subheader(f"Porcentaje: {porcentaje_audiciones_sobre_total_del_mes:.1f}%")
+def metrics():
+    from streamlit_extras.metric_cards import style_metric_cards
+    left, middle, right = st.columns(3)
+    left.metric("Total auditado del mes",value = int(auditado_total_del_mes))
+    middle.metric("Total del auditor", value = int(infracciones_auditor))
+    right.metric("Porcentaje",value = round(porcentaje_audiciones_sobre_total_del_mes,2))
 
-#Plot del total auditado en el/los mes/meses
-sns.set_style(rc = {'axes.facecolor': '#00172B'})
-
-fig_totales, ax_totales = plt.subplots(figsize=(12, 8))
-data_filtrada_por_mes_totales = data_filtrada_por_mes.groupby("Nombre").agg({"Totales":["sum"]}).reset_index()
-data_filtrada_por_mes_totales.columns = ["Nombre", "Total auditado"]
-fig_totales.patch.set_facecolor("#00172B")
-sns.barplot(
-    data=data_filtrada_por_mes_totales.sort_values(by="Total auditado", ascending=False),
-    y="Nombre",
-    x="Total auditado",
-    color="RoyalBlue",
-    edgecolor="white",
-    linewidth=0.5,
-    ax=ax_totales
-)
+    style_metric_cards(background_color = "black", border_left_color="pink")
+metrics()
 
 
-for container in ax_totales.containers:
-    ax_totales.bar_label(container, fontsize=12, color='white', label_type="center")
+div1, div2 = st.columns(2)
+def pie():
+    with div1:
+        thme_plotly = None
+        fig = px.pie(data_filtrada_por_mes, values="Totales", names="Nombre", title = "Total auditado")
+        fig.update_layout(legend_title= "Auditores", legend_y = 0.9)
+        fig.update_traces(textinfo=None, textposition="inside", marker=dict(line=dict(color='black', width=.5)))
+        st.plotly_chart(fig, use_container_width=True, theme = thme_plotly)
+pie()
 
-for text in ax_totales.texts:
-    valor = float(text.get_text())
-    text.set_text(f' {valor:.0f}')
+def barchar():
+    with div2:
+        df_agrupado = df_seleccionado.groupby("Nombre").agg({"Aprobado luces":["sum"],"Rechazo luces":["sum"],"Aprobado semáforo":["sum"],"Rechazo semáforo":["sum"]}).reset_index()
+        df_agrupado.columns = ["Nombre","Aprobado luces","Rechazo luces","Aprobado semáforo","Rechazo semáforo"]
+        total = df_agrupado.copy()
+        total["total"] = total.sum(axis = 1, numeric_only = True)
 
-meses_seleccionados = ', '.join(data_filtrada_por_mes["Mes"].unique())
-ax_totales.set_title(f"Total auditado en {meses_seleccionados}", fontsize=20, color = "white")
-sns.despine(ax=ax_totales, top=True, right=True, left=False, bottom=False)
-plt.ylabel("Nombre",color = "white")
-plt.xlabel("Total auditado", color = "white")
-plt.xticks(color = "white")
-plt.yticks(color = "white")
+        df_melted = df_agrupado.melt(id_vars="Nombre", var_name="Tipo", value_name="Valor")
+        df_melted = pd.merge(df_melted, total, on = "Nombre")
+        df_melted = df_melted.sort_values(by = "total")
+        fig = px.bar(df_melted, y = "Nombre", x = "Valor",text_auto = ".2s", color = "Tipo")
+        fig.update_traces(textfont_size = 18, textposition = "inside",marker=dict(line=dict(color='black', width=.5)))
+        st.plotly_chart(fig, use_container_width=True)
 
-# Plot de porcentajes
-auditado_total_del_mes_plot = data_filtrada_por_mes_totales["Total auditado"].sum()
-fig_porcentajes, ax_porcentajes = plt.subplots(figsize=(12, 8))
-fig_porcentajes.patch.set_facecolor("#00172B")
-
-data_filtrada_por_mes_totales["Porcentaje"] = (data_filtrada_por_mes_totales["Total auditado"] / auditado_total_del_mes_plot) * 100
-
-sns.barplot(
-    data=data_filtrada_por_mes_totales.sort_values(by="Porcentaje", ascending=False),
-    y="Nombre",
-    x="Porcentaje",
-    color="RoyalBlue",
-    edgecolor="white",
-    linewidth=0.5,
-    ax=ax_porcentajes
-)
-for container in ax_porcentajes.containers:
-    ax_porcentajes.bar_label(container, fontsize=12, color='white', label_type="center")
-
-for text in ax_porcentajes.texts:
-    valor = float(text.get_text())
-    text.set_text(f' {valor:.2f}%')
-
-ax_porcentajes.set_title(f"Porcentaje auditado en {meses_seleccionados}",fontsize=20, color = "white")
-sns.despine(ax=ax_porcentajes, top=True, right=True, left=False, bottom=False)
-plt.ylabel("Nombre",color = "white")
-plt.xlabel("Porcentaje", color = "white")
-plt.xticks(color = "white")
-plt.yticks(color = "white")
-
-left_col, right_col = st.columns(2)
-left_col.pyplot(fig_totales, use_container_width=True)
-right_col.pyplot(fig_porcentajes, use_container_width=True)
-
-left_col, right_col = st.columns(2)
-total_aprobado_luces = data_filtrada_por_mes["Aprobado luces"].sum()
-total_aprobado_semaforo = data_filtrada_por_mes["Aprobado semáforo"].sum()
-total_rechazo_luces = data_filtrada_por_mes["Rechazo luces"].sum()
-total_rechazo_semaforo = data_filtrada_por_mes["Rechazo semáforo"].sum()
-
-
-data = [total_aprobado_luces, total_aprobado_semaforo, total_rechazo_semaforo, total_rechazo_luces]
-keys = ['Aprobado de luces', 'Aprobado de semáforo', "Rechazo de semáforo", "Rechazo de luces"]
-palette_color = sns.light_palette('RoyalBlue')
-fig, ax = plt.subplots(figsize = (2,4))
-ax.pie(data, labels=keys, colors=palette_color, autopct='%.1f%%',textprops={'fontsize': 5, 'color' : "white"})
-fig.patch.set_facecolor("#00172B")
-plt.title(f"Porcentaje de auditorias en {meses_seleccionados}", fontsize=6, color = "white")
-
-# Mostrar la figura en Streamlit
-left_col.pyplot(fig, use_container_width=True)
-
-if mes and fecha:
-
-    data_filtrada_por_fecha_totales = data_filtrada_por_mes.query("Fecha == @fecha").groupby("Nombre").agg({"Totales":["sum"]}).reset_index()
-    data_filtrada_por_fecha_totales.columns = ["Nombre", "Total auditado"]
-    # Plot del total auditado en el/los mes/meses
-    fig_totales, ax_totales = plt.subplots(figsize=(10, 6))
-
-    sns.barplot(
-        data=data_filtrada_por_fecha_totales.sort_values(by="Total auditado", ascending=False),
-        y="Nombre",
-        x="Total auditado",
-        color="RoyalBlue",
-        edgecolor="black",
-        linewidth=0.5,
-        ax=ax_totales
-    )
-
-    for container in ax_totales.containers:
-        ax_totales.bar_label(container, fontsize=11, color='black', label_type="center")
-
-    for text in ax_totales.texts:
-        valor = float(text.get_text())
-        text.set_text(f' {valor:.0f}')
-
-    dias_seleccionados = ', '.join(data_filtrada_por_mes.query("Fecha == @fecha")["Fecha"].unique())
-    ax_totales.set_title(f"Total auditado el {dias_seleccionados}")
-    sns.despine(ax=ax_totales, top=True, right=True, left=False, bottom=False)
-
-    # Plot de porcentajes
-    auditado_total_del_mes_plot = data_filtrada_por_fecha_totales["Total auditado"].sum()
-    fig_porcentajes, ax_porcentajes = plt.subplots(figsize=(10, 6))
-    data_filtrada_por_fecha_totales["Porcentaje"] = (data_filtrada_por_fecha_totales["Total auditado"] / auditado_total_del_mes_plot) * 100
-
-    sns.barplot(
-        data=data_filtrada_por_fecha_totales.sort_values(by="Porcentaje", ascending=False),
-        y="Nombre",
-        x="Porcentaje",
-        color="RoyalBlue",
-        edgecolor="black",
-        linewidth=0.5,
-        ax=ax_porcentajes
-    )
-
-    for container in ax_porcentajes.containers:
-        ax_porcentajes.bar_label(container, fontsize=11, color='black', label_type="center")
-
-    for text in ax_porcentajes.texts:
-        valor = float(text.get_text())
-        text.set_text(f' {valor:.2f}%')
-
-    ax_porcentajes.set_title(f"Porcentaje auditado en {dias_seleccionados}")
-    sns.despine(ax=ax_porcentajes, top=True, right=True, left=False, bottom=False)
-# Mostrar los gráficos en columnas separadas en Streamlit
-    left_col, right_col = st.columns(2)
-    left_col.pyplot(fig_totales, use_container_width=True)
-    right_col.pyplot(fig_porcentajes, use_container_width=True)
+barchar()
