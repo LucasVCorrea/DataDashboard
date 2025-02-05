@@ -16,12 +16,12 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 
 @st.cache_data
 def get_data_from_csv():
-    data_auditores = pd.read_csv("files/merged_para_dashboard.csv")
+    data_auditores = pd.read_csv("files/merged_para_dashboard (1).csv")
     return data_auditores
 
 @st.cache_data
 def get_data_vulcan_csv():
-    data_vulcan = pd.read_csv("files/resultados_vulcan (3).csv")
+    data_vulcan = pd.read_csv("files/resultados_vulcan (4).csv")
     return data_vulcan
 
 data_auditores = get_data_from_csv()
