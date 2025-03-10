@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import seaborn as sns
+import streamlit_extras.metric_cards
 
 st.set_page_config(page_title = "Auditores Data", page_icon=":bar_chart:", layout="wide")
 
